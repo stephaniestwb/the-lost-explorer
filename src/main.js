@@ -62,6 +62,7 @@ let healthText;
 let levelComplete = false;
 let hasArtifact = false;
 let warningActive = false;
+let gameOver = false;
 
 let health = maxHealth;
 let isInvulnerable = false;
@@ -93,6 +94,7 @@ const levelHazards = [
 function create() {
   // Reset game state
   levelComplete = false;
+  gameOver = false;
   hasArtifact = false;
   warningActive = false;
   isKnockedBack = false;
@@ -189,7 +191,7 @@ function update() {
   }
 
   // Stop movement after winning
-  if (levelComplete) {
+  if (levelComplete || gameOver) {
     return;
   }
 
@@ -222,7 +224,7 @@ function update() {
   }
 
   if (player.y > deathY) {
-    this.scene.restart()
+    triggerGameOver.call(this);
   }
 }
 
@@ -278,7 +280,7 @@ function collectArtifact() {
   console.log('Artifact Collected!');
 }
 
-function hitSpikes(playerObject, spikeObject) {
+function hitSpikes() {
   if (isInvulnerable || levelComplete) {
     return;
   }
@@ -305,7 +307,7 @@ function hitSpikes(playerObject, spikeObject) {
   });
 
   if (health <= 0) {
-    this.scene.restart();
+    triggerGameOver.call(this);
     return;
   }
 
@@ -320,6 +322,29 @@ function updateHealthDisplay() {
   const emptyHearts = '♡ '.repeat(maxHealth - health);
 
   healthText.setText(fullHearts + emptyHearts);
+}
+
+function triggerGameOver() {
+  if (gameOver) {
+    return;
+  }
+
+  gameOver = true;
+
+  player.body.setVelocity(0, 0);
+  player.body.enable = false;
+
+  this.add.text(400, 190, 'GAME OVER', {
+    fontSize: '48px',
+    color: '#e05252',
+    fontFamily: 'monospace'
+  }).setOrigin(0.5);
+
+  this.add.text(400, 245, 'Press R to Restart', {
+    fontSize: '22px',
+    color: '#ffffff',
+    fontFamily: 'monospace'
+  }).setOrigin(0.5);
 }
 
 new Phaser.Game(config)
