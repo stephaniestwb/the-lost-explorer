@@ -27,8 +27,24 @@ let cursors;
 let wasd;
 let platforms;
 let exit;
+let levelComplete = false;
+
+const levelPlatforms = [
+  { x: 125, y: 382.5, width: 190, height: 25 },
+  { x: 340, y: 322.5, width: 150, height: 25 },
+  { x: 540, y: 262.5, width: 150, height: 25 },
+  { x: 722.5, y: 202.5, width: 120, height: 25 },
+];
 
 function create() {
+  // Level parameter
+  levelComplete = false;
+
+  if (levelComplete) {
+    player.body.setVelocity(0 ,0);
+    return;
+  }
+
   // Create player
   player = this.add.rectangle(100, 346, 31, 48, 0xe9b44c);
   
@@ -44,23 +60,21 @@ function create() {
   platforms = this.physics.add.staticGroup();
 
   // Create first platform
-  const platform1 = this.add.rectangle(125, 382.5, 190, 25, 0x748579);
-  platforms.add(platform1);
+  levelPlatforms.forEach((platformData) => {
+    const platform = this.add.rectangle(
+      platformData.x,
+      platformData.y,
+      platformData.width,
+      platformData.height,
+      0x748579
+    );
+    platforms.add(platform);
+  });
 
-  // Create second platform
-  const platform2 = this.add.rectangle(340, 322.5, 150, 25, 0x748579);
-  platforms.add(platform2);
-
-  // Create third platform
-  const platform3 = this.add.rectangle(540, 262.5, 150, 25, 0x748579);
-  platforms.add(platform3);
-
-  // Exit platform
-  const platform4 = this.add.rectangle(722.5, 202.5, 120, 25, 0x748579);
-  platforms.add(platform4);
-
-  // Create exit marker
+  // Create exit 
   exit = this.add.rectangle(735, 167.5, 22, 45, 0x5dbb8a)
+  this.physics.add.existing(exit, true);
+  this.physics.add.overlap(player, exit, reachExit, null, this);
    
   // Enable player-platform collision
   this.physics.add.collider(player, platforms);
@@ -68,7 +82,7 @@ function create() {
 
 function update() {
   const playerSpeed = 200;
-  const jumpVelocity = -350;
+  const jumpVelocity = -300;
 
   // Check for jump key press
   const jumpPressed = 
@@ -97,6 +111,24 @@ function update() {
   if (player.y > 500) {
     this.scene.restart()
   }
+}
+
+function reachExit() {
+  if (levelComplete) {
+    return;
+  }
+
+  levelComplete = true;
+
+  exit.setFillStyle(0xff0000);
+
+  this.add.text(400, 225, 'Level Complete!', {
+    fontSize: '36px',
+    color: '#ffffff',
+    fontFamily: 'monospace'
+  }).setOrigin(0.5);
+
+  console.log('level complete!');
 }
 
 new Phaser.Game(config)
