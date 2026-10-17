@@ -25,10 +25,15 @@ const config = {
 // Player settings
 const playerSpeed = 200;
 const jumpVelocity = -300;
+
 const playerWidth = 31;
 const playerHeight = 48;
 const playerColor = 0xe9b44c;
 const damageColor = 0xe05252; 
+
+const knockbackY = -220;
+const knockbackX = 180;
+const knockbackDuration = 250;
 
 // Health variables
 const maxHealth = 3;
@@ -61,10 +66,13 @@ let warningActive = false;
 let health = maxHealth;
 let isInvulnerable = false;
 
+let lastMoveDirection = 1;
+let isKnockedBack = false;
+
 
 // Level data
 const levelPlatforms = [
-  // First platflorm
+  // First platform
   { x: 125, y: 382.5, width: 190, height: 25 },
 
   // Exit path
@@ -77,11 +85,18 @@ const levelPlatforms = [
   { x: 445, y: 132.5, width: 140, height: 25 },
 ];
 
+const levelHazards = [
+  { x: 510, y: 245, width: 50, height: 10 },
+  { x: 315, y: 305, width: 40, height: 10 },
+];
+
 function create() {
   // Reset game state
   levelComplete = false;
   hasArtifact = false;
   warningActive = false;
+  isKnockedBack = false;
+  lastMoveDirection = 1;
 
   // Reset player health
   health = maxHealth;
@@ -100,11 +115,13 @@ function create() {
   player.body.setCollideWorldBounds(false);
 
   // Create health text
-  healthText = this.add.text(20, 20, '♥ ♥ ♥', {
+  healthText = this.add.text(20, 20, '', {
     fontSize: '28px',
     color: '#e05252',
     fontFamily: 'Arial'
   });
+
+  updateHealthDisplay();
 
   // Keyboard controls
   cursors = this.input.keyboard.createCursorKeys();
@@ -124,11 +141,21 @@ function create() {
     platforms.add(platform);
   });
 
-  // Create spike hazard
-  spikes = this.add.rectangle(510,245,50,10,0xe05252);
+  // Create spike hazards
+  spikes = this.physics.add.staticGroup();
+
+  levelHazards.forEach((spikeData) => {
+    const spike = this.add.rectangle(
+      spikeData.x,
+      spikeData.y,
+      spikeData.width,
+      spikeData.height,
+      damageColor
+    );
+    spikes.add(spike)
+  });
   
-  // Enable spikes physics
-  this.physics.add.existing(spikes, true);
+  // Detect collisions with any spike
   this.physics.add.overlap(player, spikes, hitSpikes, null, this);
 
   // Create artifact
@@ -177,12 +204,16 @@ function update() {
     player.body.touching.down;
 
   // Horizontal movement
-  if (cursors.left.isDown || wasd.A.isDown) {
-    player.body.setVelocityX(-playerSpeed);
-  } else if (cursors.right.isDown || wasd.D.isDown) {
-    player.body.setVelocityX(playerSpeed);
-  } else {
-    player.body.setVelocityX(0)
+  if (!isKnockedBack){
+    if (cursors.left.isDown || wasd.A.isDown) {
+      player.body.setVelocityX(-playerSpeed);
+      lastMoveDirection = -1;
+    } else if (cursors.right.isDown || wasd.D.isDown) {
+      player.body.setVelocityX(playerSpeed);
+      lastMoveDirection = 1;
+    } else {
+      player.body.setVelocityX(0)
+    }
   }
 
   // Vertical movement
@@ -247,17 +278,31 @@ function collectArtifact() {
   console.log('Artifact Collected!');
 }
 
-function hitSpikes() {
+function hitSpikes(playerObject, spikeObject) {
   if (isInvulnerable || levelComplete) {
     return;
   }
 
+  // Health decreases when the player touches the spikes
   health -= 1;
   isInvulnerable = true;
   player.setFillStyle(damageColor);
   updateHealthDisplay();
 
+  // Activate knockback
+  isKnockedBack = true;
+
+  // Push player away from the spike
+  player.body.setVelocity(
+    -lastMoveDirection * knockbackX,
+    knockbackY
+  );
+
   console.log('Health remaining:', health);
+
+  this.time.delayedCall(knockbackDuration, () => {
+    isKnockedBack = false;
+  });
 
   if (health <= 0) {
     this.scene.restart();
