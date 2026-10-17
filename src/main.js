@@ -27,6 +27,12 @@ const playerSpeed = 200;
 const jumpVelocity = -300;
 const playerWidth = 31;
 const playerHeight = 48;
+const playerColor = 0xe9b44c;
+const damageColor = 0xe05252; 
+
+// Health variables
+const maxHealth = 3;
+const damageCooldown = 1000;
 
 // Level settings
 const deathY = 500;
@@ -35,6 +41,8 @@ const warningDuration = 2000;
 // Game objects
 let player;
 let platforms;
+let artifact;
+let spikes;
 
 let cursors;
 let wasd;
@@ -43,27 +51,41 @@ let restartKey;
 let exit;
 let exitMessage;
 
-let artifact;
+let healthText;
 
 // Game state
 let levelComplete = false;
 let hasArtifact = false;
 let warningActive = false;
 
+let health = maxHealth;
+let isInvulnerable = false;
+
 
 // Level data
 const levelPlatforms = [
+  // First platflorm
   { x: 125, y: 382.5, width: 190, height: 25 },
-  { x: 340, y: 322.5, width: 150, height: 25 },
-  { x: 540, y: 262.5, width: 150, height: 25 },
-  { x: 722.5, y: 202.5, width: 120, height: 25 },
+
+  // Exit path
+  { x: 315, y: 322.5, width: 150, height: 25 },
+  { x: 510, y: 262.5, width: 160, height: 25 },
+  { x: 690, y: 202.5, width: 160, height: 25 },
+
+  // Upper exploration path
+  { x: 280, y: 202.5, width: 145, height: 25 },
+  { x: 445, y: 132.5, width: 140, height: 25 },
 ];
 
 function create() {
-  // Level parameter
+  // Reset game state
   levelComplete = false;
   hasArtifact = false;
   warningActive = false;
+
+  // Reset player health
+  health = maxHealth;
+  isInvulnerable = false;
 
   // Restart key implementation
   restartKey = this.input.keyboard.addKey(
@@ -71,11 +93,18 @@ function create() {
   );
 
   // Create player
-  player = this.add.rectangle(100, 346, playerWidth, playerHeight, 0xe9b44c);
+  player = this.add.rectangle(100, 346, playerWidth, playerHeight, playerColor);
   
   // Enable player physics
   this.physics.add.existing(player);
   player.body.setCollideWorldBounds(false);
+
+  // Create health text
+  healthText = this.add.text(20, 20, '♥ ♥ ♥', {
+    fontSize: '28px',
+    color: '#e05252',
+    fontFamily: 'Arial'
+  });
 
   // Keyboard controls
   cursors = this.input.keyboard.createCursorKeys();
@@ -95,8 +124,15 @@ function create() {
     platforms.add(platform);
   });
 
+  // Create spike hazard
+  spikes = this.add.rectangle(510,245,50,10,0xe05252);
+  
+  // Enable spikes physics
+  this.physics.add.existing(spikes, true);
+  this.physics.add.overlap(player, spikes, hitSpikes, null, this);
+
   // Create artifact
-  artifact = this.add.circle(540, 225, 12, 0xfacc15);
+  artifact = this.add.circle(445, 100, 12, 0xfacc15);
 
   // Enable artifact physics
   this.physics.add.existing(artifact, true);
@@ -209,6 +245,36 @@ function collectArtifact() {
   exitMessage.setVisible(false);
 
   console.log('Artifact Collected!');
+}
+
+function hitSpikes() {
+  if (isInvulnerable || levelComplete) {
+    return;
+  }
+
+  health -= 1;
+  isInvulnerable = true;
+  player.setFillStyle(damageColor);
+  updateHealthDisplay();
+
+  console.log('Health remaining:', health);
+
+  if (health <= 0) {
+    this.scene.restart();
+    return;
+  }
+
+  this.time.delayedCall(damageCooldown, () => {
+    isInvulnerable = false;
+    player.setFillStyle(playerColor);
+  });
+}
+
+function updateHealthDisplay() {
+  const fullHearts = '♥ '.repeat(health);
+  const emptyHearts = '♡ '.repeat(maxHealth - health);
+
+  healthText.setText(fullHearts + emptyHearts);
 }
 
 new Phaser.Game(config)
