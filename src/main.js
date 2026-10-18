@@ -6,6 +6,8 @@ const config = {
   type: Phaser.AUTO,
   width: 800,
   height: 450,
+  pixelArt: true,
+  roundPixels: true,
   backgroundColor: '#18283a',
 
   physics: {
@@ -17,6 +19,7 @@ const config = {
   },
 
   scene: {
+    preload: preload,
     create: create,
     update: update
   }
@@ -38,6 +41,7 @@ const knockbackDuration = 250;
 // Health variables
 const maxHealth = 3;
 const damageCooldown = 1000;
+const damageFlashDuration = 200;
 
 // Level settings
 const deathY = 500;
@@ -48,6 +52,7 @@ let player;
 let platforms;
 let artifact;
 let spikes;
+let explorerSprite;
 
 let cursors;
 let wasd;
@@ -69,7 +74,6 @@ let isInvulnerable = false;
 
 let lastMoveDirection = 1;
 let isKnockedBack = false;
-
 
 // Level data
 const levelPlatforms = [
@@ -100,6 +104,23 @@ function create() {
   isKnockedBack = false;
   lastMoveDirection = 1;
 
+  // Background
+  const jungleBackground = this.add.rectangle(400, 225, 800, 450, 0x203c35);
+  jungleBackground.setDepth(-10);
+  
+  // Jungle silhouettes
+  const distantJungle = this.add.graphics();
+  distantJungle.fillStyle(0x2f5545);
+  distantJungle.fillEllipse(100, 360, 250, 300);
+  distantJungle.fillEllipse(350, 380, 300, 350);
+  distantJungle.fillEllipse(650, 350, 320, 300);
+
+  distantJungle.setDepth(-9);
+
+  // Create columns
+  drawStoneColumn(this, 85, 170, 180);
+  drawStoneColumn(this, 630, 110, 200);
+
   // Reset player health
   health = maxHealth;
   isInvulnerable = false;
@@ -112,6 +133,18 @@ function create() {
   // Create player
   player = this.add.rectangle(100, 346, playerWidth, playerHeight, playerColor);
   
+  //pixel player
+  explorerSprite = this.add.image(
+    player.x,
+    player.y,
+    'rugged-explorer'
+  );
+
+  explorerSprite.setScale(1);
+  explorerSprite.setDepth(5);
+
+  player.setVisible(false);
+
   // Enable player physics
   this.physics.add.existing(player);
   player.body.setCollideWorldBounds(false);
@@ -141,6 +174,14 @@ function create() {
       0x748579
     );
     platforms.add(platform);
+    platform.setVisible(false);
+    drawStonePlatform(
+      this,
+      platformData.x - platformData.width / 2,
+      platformData.y - platformData.height / 2,
+      platformData.width,
+      platformData.height,
+    );
   });
 
   // Create spike hazards
@@ -190,6 +231,8 @@ function update() {
     return;
   }
 
+  explorerSprite.setPosition(player.x, player.y);
+
   // Stop movement after winning
   if (levelComplete || gameOver) {
     return;
@@ -210,9 +253,15 @@ function update() {
     if (cursors.left.isDown || wasd.A.isDown) {
       player.body.setVelocityX(-playerSpeed);
       lastMoveDirection = -1;
+
+      explorerSprite.setFlipX(true);
+
     } else if (cursors.right.isDown || wasd.D.isDown) {
       player.body.setVelocityX(playerSpeed);
       lastMoveDirection = 1;
+
+      explorerSprite.setFlipX(false);
+
     } else {
       player.body.setVelocityX(0)
     }
@@ -281,14 +330,14 @@ function collectArtifact() {
 }
 
 function hitSpikes() {
-  if (isInvulnerable || levelComplete) {
+  if (isInvulnerable || levelComplete || gameOver) {
     return;
   }
 
   // Health decreases when the player touches the spikes
   health -= 1;
   isInvulnerable = true;
-  player.setFillStyle(damageColor);
+  explorerSprite.setTint(0xff5555);
   updateHealthDisplay();
 
   // Activate knockback
@@ -311,9 +360,14 @@ function hitSpikes() {
     return;
   }
 
+  // Remove red tint after 200ms
+  this.time.delayedCall(damageFlashDuration, () => {
+    explorerSprite.clearTint();
+  });
+
+  // Restore vulnerability after 1000ms
   this.time.delayedCall(damageCooldown, () => {
     isInvulnerable = false;
-    player.setFillStyle(playerColor);
   });
 }
 
@@ -345,6 +399,55 @@ function triggerGameOver() {
     color: '#ffffff',
     fontFamily: 'monospace'
   }).setOrigin(0.5);
+  
+  this.add.text(400, 265, 'get good noob', {
+    fontSize: '12px',
+    color: '#ffffff',
+    fontFamily: 'monospace'
+  }).setOrigin(0.5);
 }
 
+function drawStoneColumn(scene, x, y, height) {
+  const graphics = scene.add.graphics();
+
+  // Main stone column
+  graphics.fillStyle(0x64776a);
+  graphics.fillRect(x, y, 32, height);
+
+  // Stone caps
+  graphics.fillStyle(0x829588);
+  graphics.fillRect(x - 5, y - 5, 42, 11);
+  graphics.fillRect(x - 5, y + height - 7, 42, 11);
+
+  // Add cracks
+  graphics.lineStyle(2, 0x3e5548)
+  graphics.beginPath();
+  graphics.moveTo(x + 12, y + 20);
+  graphics.lineTo(x + 7, y + 45);
+  graphics.lineTo(x + 17, y + 65);
+  graphics.strokePath();
+
+  graphics.setDepth(-8);
+}
+
+function drawStonePlatform(scene, x, y, width, height) {
+  const graphics = scene.add.graphics();
+
+  // Main body
+  graphics.fillStyle(0x657569);
+  graphics.fillRect(x, y, width, height);
+
+  // Moss along the top
+  graphics.fillStyle(0x65965c);
+  graphics.fillRect(x, y, width, 6);
+
+  graphics.setDepth(1);
+}
+
+function preload() {
+  this.load.image(
+    'rugged-explorer',
+    '/assets/characters/rugged-explorer.png'
+  )
+}
 new Phaser.Game(config)
