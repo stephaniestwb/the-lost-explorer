@@ -30,3 +30,6 @@ dist-ssr
 
 # Windows files
 Thumbs.db
+
+# Test skins templates
+test_skins/
